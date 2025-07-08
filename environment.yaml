@@ -1,0 +1,15 @@
+name: drug-detection
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - scikit-learn
+  - pandas
+  - numpy
+  - rdkit
+  - tqdm
+  - ipykernel
+  - seaborn
+  - matplotlib
+  - joblib
+  - imbalanced-learn
