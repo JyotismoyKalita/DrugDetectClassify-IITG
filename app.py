@@ -7,17 +7,14 @@ from rdkit.Chem import MACCSkeys, DataStructs
 from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator
 from Mold2_pywrapper import Mold2
 
-# --- File Paths ---
 PATH_MOLD2_ZIP = "Drug Detection/Tools/Mold2-Executable-File.zip"
 DETECTION_MODEL_PATH = "Drug Detection/Model/druglikeness_logreg_bundle.pkl"
 CLASSIFICATION_MODEL_PATH = "Drug Classification/Model/drugclass_logreg_bundle.pkl"
 CLASS_MAPPING_PATH = "Drug Classification/Dataset/atc/dataset.csv"
 
-# --- Constants ---
 ECFP_BITS = 2048
 MACCS_BITS = 166
 
-# --- Load Models ---
 @st.cache_resource(show_spinner=False)
 def load_detection_model():
     return joblib.load(DETECTION_MODEL_PATH)
@@ -37,7 +34,6 @@ detection_threshold = model_bundle["threshold"]
 classification_pipeline = load_classification_model()
 num_to_atc = load_atc_mapping()
 
-# --- Feature Extraction ---
 def fp_to_array(fp, n_bits):
     arr = np.zeros((n_bits,), dtype=int)
     DataStructs.ConvertToNumpyArray(fp, arr)
@@ -49,17 +45,14 @@ def extract_all_features(smiles):
         return None
 
     try:
-        # MolD2
         mold2 = Mold2.from_executable(PATH_MOLD2_ZIP)
         mold2_df = pd.DataFrame(mold2.calculate([mol]))
 
-        # ECFP4
         morgan_gen = GetMorganGenerator(radius=2, fpSize=ECFP_BITS)
         ecfp = morgan_gen.GetFingerprint(mol)
         ecfp_array = fp_to_array(ecfp, ECFP_BITS)
         ecfp_df = pd.DataFrame([ecfp_array], columns=[f"ECFP4_{i}" for i in range(ECFP_BITS)])
 
-        # MACCS
         maccs = MACCSkeys.GenMACCSKeys(mol)
         maccs_array = fp_to_array(maccs, MACCS_BITS + 1)[1:]  # Drop bit 0
         maccs_df = pd.DataFrame([maccs_array], columns=[f"MACCS_{i}" for i in range(MACCS_BITS)])
@@ -71,7 +64,6 @@ def extract_all_features(smiles):
         st.error(f"[Feature extraction error] {e}")
         return None
 
-# --- Streamlit UI ---
 st.set_page_config(page_title="Drug Detection & ATC Classification", page_icon="🧪", layout="centered")
 st.title("🧪 Drug Detection and ATC Level‑1 Classification")
 
@@ -97,7 +89,6 @@ if st.button("🔍 Analyze Molecule"):
 
     features_full, ecfp_arr = feats_combined
 
-    # --- Drug Detection ---
     try:
         proba = detection_pipeline.predict_proba(features_full)[0, 1]
         is_drug = int(proba >= detection_threshold)
@@ -108,7 +99,6 @@ if st.button("🔍 Analyze Molecule"):
     if is_drug:
         st.success(f"✅ Detected as Drug (Probability: {proba:.3f} ≥ Threshold: {detection_threshold})")
 
-        # Predict ATC Level 1
         try:
             x_query = pd.DataFrame([ecfp_arr], columns=[f"ECFP4_{i}" for i in range(ECFP_BITS)])
             probs = classification_pipeline.predict_proba(x_query)[0]
